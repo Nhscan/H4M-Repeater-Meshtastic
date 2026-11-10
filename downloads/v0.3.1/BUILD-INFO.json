@@ -1,0 +1,36 @@
+{
+  "release": "H4M Repeater + Meshtastic v0.3.1",
+  "firmware_version": "n_261109_ar04",
+  "base_tag": "nightly-tag-2026-11-09",
+  "base_commit": "706fd7f91e0318fc4643e8d31f5087ececb312c4",
+  "hardware": "HackRF One + PortaPack H4M; not HackRF Pro or PortaRF",
+  "compiler": "GNU Arm Embedded GCC 9.2.1 20191025",
+  "app_compatibility_id": "0x110571d8",
+  "matching_ppma_apps": 104,
+  "matching_ppmp_apps": 2,
+  "sd_baseband_images": 70,
+  "spi_baseband_tags": [
+    "PFUT",
+    "PLOR",
+    "PLOT",
+    "HRF1"
+  ],
+  "hardware_tested": false,
+  "sd_failure_resolved_on_hardware": false,
+  "video_regressions": [
+    "unchanged UI repaint loop",
+    "idle capture-loss accounting",
+    "noise-held recording timeout",
+    "rearm after skipped capture"
+  ],
+  "first_install_from_v02": "USB HackRF mode; old builds lack PFUT",
+  "update_from_v030": "Flash Utility tar or USB",
+  "lora_runtime": {
+    "heap_bytes": 78628,
+    "processor_bytes": 57880,
+    "dma_bytes": 16384,
+    "headroom_bytes": 4332
+  },
+  "firmware_sha256": "950447d3d9a5c809dafa939f87ab42fe7ba4ce4f8f7ea51c726ebe20624bcbc1",
+  "update_tar_sha256": "c2969e5a0ce81bf522569aa7eb8efec26252f929a5255789b8e4097d719d8524"
+}

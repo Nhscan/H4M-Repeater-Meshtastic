@@ -30,7 +30,7 @@ A native Meshtastic client that runs entirely on the HackRF, using software-defi
 
 ## Download v0.3.1
 
-**[Download the complete v0.3.1 ZIP](https://github.com/Nhscan/H4M-Repeater-Meshtastic/releases/download/v0.3.1/H4M-Repeater-Meshtastic-v0.3.1.zip)**
+**[⬇️ Download the complete v0.3.1 ZIP](https://github.com/Nhscan/H4M-Repeater-Meshtastic/raw/next/downloads/v0.3.1/H4M-Repeater-Meshtastic-v0.3.1.zip)** · [Release page](https://github.com/Nhscan/H4M-Repeater-Meshtastic/releases/tag/v0.3.1) · [Screen walkthrough video](docs/h4m/media/H4M-v0.3.1-screen-demo.mp4)
 
 Custom firmware version: **`n_261109_ar04`**. The ZIP includes firmware, matching SD applications and baseband files, Windows USB recovery tools, source patch, checksums and instructions.
 
