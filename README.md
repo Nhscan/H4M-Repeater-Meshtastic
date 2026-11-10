@@ -13,8 +13,10 @@ This firmware adds two new apps to the HackRF/PortaPack H4M, both found under **
 ### 📡 Auto Repeater
 A store-and-forward "parrot" repeater for the PortaPack. It sits on a receive frequency and listens. When a signal rises above your trigger level, it records it to the SD card. When the signal stops, it waits a short delay and transmits the recording back out, on the same frequency or on a separate TX frequency. Then it rearms for the next one. It works with raw IQ (any signal), with voice modes (NFM, FM, AM, USB, LSB, WFM), and with OOK remotes. In OOK mode it can recognize many common key-fob and sensor protocols live and export Flipper Zero `.sub` files. An **Auto level** button sets the trigger from the background noise for you. **REC / TX / SKIP** counters show what it's doing at a glance.
 
-### 💬 Meshtastic (experimental)
-A native Meshtastic client that runs entirely on the HackRF, using software-defined LoRa with no external LoRa radio. It has **Chat**, **Nodes**, **Data** and **Setup** tabs. You can join a mesh by matching region, modem preset, channel and key with your other nodes, then send and receive text messages, NodeInfo and telemetry. It's early: the app opens and transmits on the H4M, but two-way messaging with real Meshtastic nodes still needs community testing. Reports are very welcome.
+### 💬 Meshtastic (experimental, needs testers!)
+A native Meshtastic client that runs entirely on the HackRF, using software-defined LoRa with no external LoRa radio. It has **Chat**, **Nodes**, **Data** and **Setup** tabs. You can join a mesh by matching region, modem preset, channel and key with your other nodes, then send and receive text messages, NodeInfo and telemetry.
+
+> ⚠️ **Meshtastic needs more testing.** I don't own a Meshtastic device, so I haven't been able to test the HackRF against a real Meshtastic node. On my H4M the app opens and sends NodeInfo/telemetry, but **sending and receiving messages with real nodes is untested**. If you own a Meshtastic radio, please try it and [open an issue](https://github.com/Nhscan/H4M-Repeater-Meshtastic/issues) with your results (region, preset, frequency, and whether each side saw the other's messages).
 
 ## Screenshots
 
@@ -32,7 +34,7 @@ A native Meshtastic client that runs entirely on the HackRF, using software-defi
 
 Custom firmware version: **`n_261109_ar04`**. The ZIP includes firmware, matching SD applications and baseband files, Windows USB recovery tools, source patch, checksums and instructions.
 
-This is a **community test build**, not an official Mayhem or Meshtastic release. The owner reports that the repeater works well in preliminary H4M testing. Meshtastic opens on the H4M; messaging and interoperability still need more testing. Other hardware, radio modes and long-running behavior have not been comprehensively validated.
+This is a **community test build**, not an official Mayhem or Meshtastic release. The owner reports that the repeater works well in preliminary H4M testing. Meshtastic opens on the H4M, but it has not been tested against a real Meshtastic node yet because the owner doesn't have a Meshtastic device. Testers with Meshtastic radios are needed. Other hardware, radio modes and long-running behavior have not been comprehensively validated.
 
 ## Install
 
