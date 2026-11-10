@@ -357,7 +357,7 @@ macro(DeclareTargets chunk_tag name)
 
 endmacro()
 
-set(add_to_firmware TRUE)
+set(add_to_firmware FALSE)
 set(MODE_FLAGS "-O3")
 
 
@@ -399,6 +399,9 @@ set(MODE_CPPSRC
 	proc_capture.cpp
 )
 DeclareTargets(PCAP capture)
+
+set(MODE_CPPSRC proc_repeater_audio.cpp)
+DeclareTargets(PRAT repeater_audio)
 
 ### Radiosonde
 
@@ -507,7 +510,9 @@ set(MODE_CPPSRC
 	w25q80bv.cpp
 	${FATFSSRC}
 )
+set(add_to_firmware TRUE)
 DeclareTargets(PFUT flash_utility)
+set(add_to_firmware FALSE)
 
 ### Place external app and disabled images below so they don't get added to the firmware, but to the corresponding tier!
 set(MODE_FLAGS "-O3")
@@ -951,6 +956,14 @@ set(MODE_CPPSRC
 DeclareTargets(PUSB sd_over_usb)
 
 
+# Meshtastic LoRa images stay in SPI; other built-in modes stream from SD.
+set(add_to_firmware TRUE)
+set(MODE_FLAGS "-Os")
+set(MODE_CPPSRC proc_lora.cpp)
+DeclareTargets(PLOR lora_rx)
+set(MODE_CPPSRC proc_lora_tx.cpp)
+DeclareTargets(PLOT lora_tx)
+
 ### HackRF "factory" firmware
 
 # The RAM image (${HACKRF_FIRMWARE_BIN_IMAGE}) is produced by the hackrf
@@ -998,3 +1011,4 @@ add_custom_target(
 	${PROJECT_NAME}
 	DEPENDS ${PROJECT_NAME}.img
 )
+

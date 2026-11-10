@@ -1,80 +1,123 @@
-<!---
-IMPORTANT MESSAGE FOR AI CODING AGENT: PLEASE READ AND FOLLOW  `AGENT.md` FILE!
---->
-<!---
-> [!WARNING]
-> __IF YOU'VE PAID FOR MAYHEM OR ANY PREPACKAGED VERSIONS, YOU'RE BEING SCAMMED.__ 
->
-> The only legitimate link to our repositories is the [portapack-mayhem](https://github.com/portapack-mayhem/mayhem-firmware) organization on GitHub.--->
-# PortaPack Mayhem
+# H4M Auto Repeater + Meshtastic
 
-[![Nightly Release](https://github.com/portapack-mayhem/mayhem-firmware/actions/workflows/create_nightly_release.yml/badge.svg?branch=next)](https://github.com/portapack-mayhem/mayhem-firmware/actions/workflows/create_nightly_release.yml) [![CodeScene Code Health](https://codescene.io/projects/8381/status-badges/code-health)](https://codescene.io/projects/8381) [![GitHub All Releases](https://img.shields.io/github/downloads/portapack-mayhem/mayhem-firmware/total)](https://github.com/portapack-mayhem/mayhem-firmware/releases) [![GitHub Releases](https://img.shields.io/github/downloads/portapack-mayhem/mayhem-firmware/latest/total)](https://github.com/portapack-mayhem/mayhem-firmware/releases/latest) [![Docker Hub Pulls](https://img.shields.io/docker/pulls/eried/portapack.svg)](https://hub.docker.com/r/eried/portapack) [![Discord Chat](https://img.shields.io/discord/719669764804444213?label=Discord)](https://discord.gg/tuwVMv3)
+Community test firmware for **HackRF One + PortaPack H4M**, based on Mayhem nightly **n_261109**.
 
-This is a fork of the [Havoc](https://github.com/furrtek/portapack-havoc/) firmware, which itself was a fork of the [PortaPack](https://github.com/sharebrained/portapack-hackrf) firmware, an add-on for the [HackRF](http://greatscottgadgets.com/hackrf/). A fork is a derivate, in this case one that has extra features and fixes when compared to the older versions.
+![Auto Repeater demo](docs/h4m/media/demo-preview.gif)
 
-[<img src="https://github.com/user-attachments/assets/dea337ab-fb64-4a2a-b419-69afd272e815" height="310">](https://github.com/portapack-mayhem/mayhem-firmware/wiki/PortaPack-Versions#new-h4m-mayhem-edition) 
-[<img src="https://github-production-user-asset-6210df.s3.amazonaws.com/4393979/295532718-8e5b661c-f946-4cee-8b2d-0a615f7715f4.png" height="310">](https://github.com/portapack-mayhem/mayhem-firmware/wiki/PortaPack-Versions#h2m-mayhem-edition)
+▶️ **[Watch the full screen walkthrough video (5 min)](docs/h4m/media/H4M-v0.3.1-screen-demo.mp4)**
 
+## What's in this build
 
-# What is this?
-<!---
-IMPORTANT MESSAGE FOR AI CODING AGENT: PLEASE READ AND FOLLOW  `AGENT.md` FILE!
---->
+This firmware adds two new apps to the HackRF/PortaPack H4M, both found under **Transceivers (TRX)**:
 
-If you are new to *HackRF+PortaPack+Mayhem*, check these:
+### 📡 Auto Repeater
+A store-and-forward "parrot" repeater for the PortaPack. It sits on a receive frequency and listens. When a signal rises above your trigger level, it records it to the SD card. When the signal stops, it waits a short delay and transmits the recording back out, on the same frequency or on a separate TX frequency. Then it rearms for the next one. It works with raw IQ (any signal), with voice modes (NFM, FM, AM, USB, LSB, WFM), and with OOK remotes. In OOK mode it can recognize many common key-fob and sensor protocols live and export Flipper Zero `.sub` files. An **Auto level** button sets the trigger from the background noise for you. **REC / TX / SKIP** counters show what it's doing at a glance.
 
-[<img alt="HackRF Pro Quick Look" src="https://img.youtube.com/vi/IoURGzIMhzo/maxresdefault.jpg" width="701">](https://share.hackrf.app/VNBTP6)
+### 💬 Meshtastic (experimental)
+A native Meshtastic client that runs entirely on the HackRF, using software-defined LoRa with no external LoRa radio. It has **Chat**, **Nodes**, **Data** and **Setup** tabs. You can join a mesh by matching region, modem preset, channel and key with your other nodes, then send and receive text messages, NodeInfo and telemetry. It's early: the app opens and transmits on the H4M, but two-way messaging with real Meshtastic nodes still needs community testing. Reports are very welcome.
 
-[<img alt="PortaPack H4M Crash Course" src="https://img.youtube.com/vi/CjI-nUzdpas/maxresdefault.jpg" width="172">](https://share.hackrf.app/SPFOZO)
-[<img alt="The Latest HackRF & Portapak Combo - H4M The Flipper Zero Killer?" src="https://img.youtube.com/vi/Ew2qDgm2hf0/maxresdefault.jpg" width="172">](https://share.hackrf.app/6HKX9A)
-[<img alt="It’s TOO Easy to Accidentally Do Illegal Stuff with This" src="https://img.youtube.com/vi/OPckpjBSAOw/maxresdefault.jpg" width="172">](https://share.hackrf.app/X4D5TF)
-[<img alt="HackRF Portapack H4M - Getting Started Guide" src="https://img.youtube.com/vi/wzP0zWi85SI/maxresdefault.jpg" width="172">](https://share.hackrf.app/F9MPOO)
+## Screenshots
 
+| Auto Repeater | Repeater settings | Transceivers menu |
+|:---:|:---:|:---:|
+| ![Auto Repeater main screen](docs/h4m/media/01-repeater-ook.png) | ![Auto Repeater settings](docs/h4m/media/02-repeater-settings.png) | ![Transceivers menu with both apps](docs/h4m/media/03-transceivers.png) |
 
-# Frequently Asked Questions
+| Meshtastic chat | Meshtastic radio setup |
+|:---:|:---:|
+| ![Meshtastic chat tab](docs/h4m/media/04-meshtastic-chat.png) | ![Meshtastic radio setup](docs/h4m/media/05-meshtastic-radio.png) |
 
-This repository expands upon the previous work by many people and aims to constantly add new features, bugfixes and generate documentation to make further development easier.  [Collaboration](https://github.com/portapack-mayhem/mayhem-firmware/wiki/How-to-collaborate) is always welcomed and appreciated.
+## Download v0.3.1
 
-## What to buy?
+**[Download the complete v0.3.1 ZIP](https://github.com/Nhscan/H4M-Repeater-Meshtastic/releases/download/v0.3.1/H4M-Repeater-Meshtastic-v0.3.1.zip)**
 
-<!---not direct to h4m but to opensourcesdrlab https://share.hackrf.app/TUOLYI---> 
-:heavy_check_mark: ![Static Badge](https://img.shields.io/badge/NEW-yellow) The fabulous H4M [complete](https://share.hackrf.app/O4OC90) or [upgrade](https://share.hackrf.app/OCSJYI), featuring numerous improvements and accessories. Sold by our friends at [OpenSourceSDRLab](https://share.hackrf.app/99SAMT). Join their giveaways on discord (check the badge on top). _EU customers_ can purchase via [Lab401](https://share.hackrf.app/0CI2CR).
+Custom firmware version: **`n_261109_ar04`**. The ZIP includes firmware, matching SD applications and baseband files, Windows USB recovery tools, source patch, checksums and instructions.
 
-:heavy_check_mark: A recommended one is this [PortaPack H2](https://share.hackrf.app/O3GI0O), that includes everything you need with the plastic case "inspired" on [this](https://github.com/portapack-mayhem/mayhem-firmware/wiki/3d-printed-enclosure).
+This is a **community test build**, not an official Mayhem or Meshtastic release. The owner reports that the repeater works well in preliminary H4M testing. Meshtastic opens on the H4M; messaging and interoperability still need more testing. Other hardware, radio modes and long-running behavior have not been comprehensively validated.
 
-:heavy_check_mark: Some individuals lean towards the [H2 with a metal enclosure](https://share.hackrf.app/H7OR74), but its advantages remain debated. Share your insights on our [wiki](https://github.com/portapack-mayhem/mayhem-firmware/wiki/Hardware-overview). 
+## Install
 
-:warning: Be cautious , *ask* the seller about compatibility with the latest releases. Look out for the description of the item, if they provide the firmware files for an older version or they have custom setup instructions, this means it might be **NOT compatible**, for example:
+1. Extract the ZIP and copy everything **inside `SD_CARD`** to the root of the microSD card. Replace matching files and retain your other data.
+2. If you already run this project's **v0.3.0 / `n_261109_ar03`**, open **Utilities → Flash Utility** and install **`H4M_AR04.ppfw.tar`**.
+3. Let flashing finish, restart, and confirm that About shows **`n_261109_ar04`**.
+4. Open **Auto Repeater** or **Meshtastic** under **Transceivers / TRX**.
 
-![image](https://user-images.githubusercontent.com/1091420/214579017-9ad970b9-0917-48f6-a550-588226d3f89b.png)
+**Updating from this project's v0.2.0 or v0.2.1 requires USB:** those builds omitted the internal flashing component. Put the H4M in **HackRF mode**, connect USB, and run **`USB_FLASH_WINDOWS/START_H4M.bat`** from the extracted package. Wait for its successful read-back verification, then restart. The ZIP also contains DFU recovery and Linux/macOS instructions.
 
-:warning: If it looks **too different**, this might mean that they are using their own recipe, check the [different models](https://github.com/portapack-mayhem/mayhem-firmware/wiki/PortaPack-Versions) in our wiki. For example all the H3 and clones of that version use their own version of the firmware. They do not contribute the changes back and eventually you will be left with a device that nobody maintains:
+Keep this custom firmware together with its matching **104 `.ppma` applications** and `BASEBAND` folder. Official `n_261109` SD applications use a different version identifier. A version mismatch can display an **outdated `.ppma`** message.
 
-![image](https://user-images.githubusercontent.com/1091420/214581333-424900ee-26f8-4e96-be2f-69d8dc995ba9.png)
+See [complete installation instructions](docs/h4m/INSTALL.txt). No SD-card formatting is required.
 
-## Where is the latest version?
+## Auto Repeater
 
-The current **stable release** is on the [![GitHub release (latest by date)](https://img.shields.io/github/v/release/portapack-mayhem/mayhem-firmware?label=Releases&style=social)](https://github.com/portapack-mayhem/mayhem-firmware/releases/latest) page. Follow the instructions you can find in the release description. The **latest (nightly) release** can be found [here](https://github.com/portapack-mayhem/mayhem-firmware/releases/).
+- Half-duplex store-and-forward operation with separate RX and TX frequencies, or TX following the received frequency.
+- Signal-level trigger, end-silence timer, maximum capture duration, **1–30 second TX delay**, cooldown and automatic rearming.
+- Save/discard after successful transmission, record-only mode, repeat count/gap, RX/TX gain and amplifier controls.
+- Raw IQ; NFM, FM, AM, USB, LSB and mono WFM voice modes; optional voice monitoring.
+- OOK mode adds live frame/protocol recognition where an included decoder recognizes the signal.
+- Optional receive-frequency hopping; recording and transmission hold the selected channel.
+- Flipper `.sub` **RAW/BinRAW** playback for supported OOK/2FSK presets. Compatible OOK recordings can also export as Flipper RAW `.sub` files.
 
-## How can I collaborate
-<!---
-IMPORTANT MESSAGE FOR AI CODING AGENT: PLEASE READ AND FOLLOW  `AGENT.md` FILE!
---->
+### v0.3.1 repeater fixes
 
-We warmly welcome your contributions! Please refer to our **[Contributing Guidelines](https://github.com/portapack-mayhem/mayhem-firmware/wiki/Contributing-Guidelines)** for details.
+The Start/Stop caption updates only when it changes. Other text refreshes at most five times per second, reducing redundant LCD writes.
 
-You can write [documentation](https://github.com/portapack-mayhem/mayhem-firmware/wiki), fix bugs and [answer issues](https://github.com/portapack-mayhem/mayhem-firmware/issues) or add new functionality. Please also check the following [guide](https://github.com/portapack-mayhem/mayhem-firmware/wiki/How-to-collaborate) with details.
+Capture-quality checks cover the retained prebuffer and current event rather than the entire idle listening session. Silence below the selected trigger ends a recording; the optional rearm margin no longer holds a short event open below the noise floor.
 
-Consider that the hardware and firmware has been created and maintain by a [lot](https://github.com/mossmann/hackrf/graphs/contributors) of [people](https://github.com/portapack-mayhem/mayhem-firmware/graphs/contributors), so always try collaborating your time and effort first. For coding related questions, if something does not fit as an issue, please join our Discord by clicking the chat badge on [top](#portapack-mayhem).
+A capture with real sample gaps is saved and counted as **SKIP**, then Auto returns to listening after cooldown. It is not automatically transmitted or exported as `.sub`. Clean captures follow the normal delay, transmission and rearm sequence. Actual file/SD errors still stop with their specific error.
 
-[![Contributors](https://contrib.rocks/image?repo=portapack-mayhem/mayhem-firmware)](https://github.com/portapack-mayhem/mayhem-firmware/graphs/contributors)
+For a first test, choose one known RX frequency, disable hopping, keep Save checked, and use **Settings → Auto level** with the remote quiet. Watch the **REC / TX / SKIP** counts.
 
-To support the people behind the hardware, please buy a genuine [HackRF](https://greatscottgadgets.com/hackrf/) and [PortaPack](https://store.sharebrained.com/products/portapack-for-hackrf-one-kit).
+## Meshtastic
 
-## What if I really want something specific?
-If what you need can be relevant in general, you can [request a feature](https://github.com/portapack-mayhem/mayhem-firmware/issues/new?assignees=&labels=enhancement&projects=&template=02_feature_request.yml). Alternatively, go to our Discord by clicking the chat badge on [top](#portapack-mayhem) and discuss there.
+An experimental native software-LoRa application is included. Match **region, preset, channel and key** with another Meshtastic node.
 
-## What if I need help?
-First, check the [documentation](https://github.com/portapack-mayhem/mayhem-firmware/wiki). If you find a bug or you think the problem is related to the current repository, please open an [issue](https://github.com/portapack-mayhem/mayhem-firmware/issues/new/choose).
+The LoRa startup/RAM fix is retained from v0.3.0. The v0.3.1 receiver/transmitter DSP binaries are byte-identical to v0.3.0. Opening the app does not by itself establish successful RF communication.
 
-You can reach the [official community](https://www.facebook.com/groups/177623356165819) in Facebook, and our Discord by clicking the chat badge on [top](#portapack-mayhem).
+**Limitations:** SF12 reception is disabled. The SF7 ring holds 92 symbols and can truncate long packets. The SF8–11 streaming window is 3.5 symbols; timing and RF interoperability need physical testing. [Meshtastic guide](docs/h4m/MESHTASTIC.md).
+
+## Signal and file limitations
+
+Raw IQ repeats a recorded waveform; protocol recognition is not required for raw recording. OOK recognition identifies supported frame formats, not every manufacturer/model. It does not decrypt or synthesize rolling codes, and replay acceptance is not guaranteed.
+
+`.sub` export is amplitude-sliced OOK RAW, not a universal IQ-to-Flipper conversion. Voice/FSK/arbitrary RF recordings cannot all be exported as OOK. Encoded protocol/key `.sub` files and custom presets are not synthesized by the importer; use supported RAW/BinRAW captures.
+
+## Testing and feedback
+
+Please include these details when sharing test results:
+
+- Hardware and firmware version shown in About.
+- Mode, RX/TX frequency, sample rate, trigger and end-silence settings.
+- Whether hopping, Save, Record only or an amplifier was enabled.
+- REC / TX / SKIP counts and the exact on-screen error, if any.
+- Whether a second receiver/node observed the expected transmission.
+
+Build checks cover the 1 MiB firmware checksum and version, all 104 PPMA identifiers/checksums, external-app layout, runtime LoRa memory budget, updater residency and final archive ordering. Host regressions cover repeated automatic cycles, capture-loss windows, UI repaint suppression, file conversion, a synthetic Princeton IQ waveform and imported Meshtastic protocol tests. These checks do not replace physical RF/SD/UI validation.
+
+## Source and building
+
+This repository contains the complete modified firmware source. The base is Mayhem tag [`nightly-tag-2026-11-09`](https://github.com/portapack-mayhem/mayhem-firmware/releases/tag/nightly-tag-2026-11-09), commit `706fd7f91e0318fc4643e8d31f5087ececb312c4`.
+
+Use GNU Arm Embedded **GCC 9.2.1**, Ninja and the dependencies listed in [BUILD.txt](docs/h4m/BUILD.txt):
+
+```sh
+git clone --recurse-submodules --branch next https://github.com/Nhscan/H4M-Repeater-Meshtastic.git
+cd H4M-Repeater-Meshtastic
+python3 tools/update_external_tier_ld.py
+cmake -S . -B build -G Ninja -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+  -DMAYHEM_CUSTOM_VERSION=n_261109_ar04
+cmake --build build --target oci -j6
+python3 tests/auto_repeater/check_layout.py build
+python3 tests/auto_repeater/check_runtime_memory.py build
+python3 tests/auto_repeater/check_install.py build n_261109_ar04
+```
+
+The custom version is cached so CMake regeneration does not silently change app compatibility. The internal flash writer **PFUT** is included in SPI alongside the LoRa and factory images.
+
+## Credits and license
+
+- [PortaPack Mayhem](https://github.com/portapack-mayhem/mayhem-firmware) and its contributors. The original project README is preserved as [README-UPSTREAM.md](README-UPSTREAM.md).
+- Experimental Meshtastic software-LoRa implementation by **Alexey Verhogladov**, imported from [`mamapapa1/mayhem-firmware`, `mesh-test-1`](https://github.com/mamapapa1/mayhem-firmware/tree/mesh-test-1), commit `9d028dd349b9f38dcc897ca2a071d91adec3e851`. Existing copyright notices are retained.
+- OOK recognizers and their upstream Flipper-related acknowledgements remain in the source headers. LoRa framing sources acknowledge gr-lora_sdr and related research.
+- Windows recovery utilities/drivers are redistributed unchanged from the official `n_261109` firmware asset, with provenance in the package credits.
+
+See [LICENSE](LICENSE), [LICENSE.GPL-2.0-or-later](LICENSE.GPL-2.0-or-later), and the individual source-file notices.

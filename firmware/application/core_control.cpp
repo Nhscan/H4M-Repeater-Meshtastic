@@ -46,6 +46,15 @@ void m4_restore_bundled() {
     }
 }
 
+bool m4_image_available(const spi_flash::image_tag_t image_tag) {
+    const auto* chunk = reinterpret_cast<const spi_flash::chunk_t*>(spi_flash::images.base());
+    while (chunk->tag) {
+        if (chunk->tag == image_tag) return true;
+        chunk = chunk->next();
+    }
+    return false;
+}
+
 bool m4_init(const spi_flash::image_tag_t image_tag, const memory::region_t to, const bool full_reset) {
     const spi_flash::chunk_t* chunk = reinterpret_cast<const spi_flash::chunk_t*>(spi_flash::images.base());
     while (chunk->tag) {

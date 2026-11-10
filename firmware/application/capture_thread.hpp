@@ -40,8 +40,12 @@ class CaptureThread {
         size_t write_size,
         size_t buffer_count,
         std::function<void()> success_callback,
-        std::function<void(File::Error)> error_callback);
+        std::function<void(File::Error)> error_callback,
+        size_t stack_size = 1024);
     ~CaptureThread();
+    // Join the writer while retaining its final counters for event-quality
+    // checks. The destructor closes the writer/file after this returns.
+    void stop();
 
     CaptureThread(const CaptureThread&) = delete;
     CaptureThread(CaptureThread&&) = delete;

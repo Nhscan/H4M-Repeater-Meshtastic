@@ -132,6 +132,8 @@ void request_rssi_beep();
 void request_beep_stop();
 void request_audio_beep(uint32_t freq, uint32_t sample_rate, uint32_t duration_ms);
 
+void set_lora_config(uint8_t spreading_factor,uint32_t bandwidth_hz,uint8_t coding_rate,uint32_t local_node_id=0);
+void send_lora_packet(const uint8_t* data,size_t len);
 bool is_image_running();
 bool supports_rx_fs4();
 void set_rx_fs4_direction(RxFs4Direction direction);

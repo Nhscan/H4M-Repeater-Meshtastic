@@ -1,5 +1,3 @@
-> Publication status: v0.3.1 is prepared locally; the GitHub release is a draft pending source and asset upload.
-
 # Changelog
 
 ## v0.3.1 — 2026-11-09

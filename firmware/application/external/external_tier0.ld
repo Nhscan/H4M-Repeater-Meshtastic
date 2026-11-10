@@ -123,6 +123,10 @@ MEMORY
     ram_external_app_wmbus_rx              (rwx) : org = 0xAE120000, len = 32k
     ram_external_app_spec_an               (rwx) : org = 0xAE130000, len = 32k
     ram_external_app_lcd_gamma             (rwx) : org = 0xAE140000, len = 32k
+    ram_external_app_auto_repeater         (rwx) : org = 0xAE150000, len = 32k
+    ram_external_app_meshtastic            (rwx) : org = 0xAE160000, len = 32k
+    ram_external_app_subghz_chat           (rwx) : org = 0xAE170000, len = 32k
+    ram_external_app_vdl2_rx               (rwx) : org = 0xAE180000, len = 32k
 }
 
 SECTIONS
@@ -726,4 +730,28 @@ SECTIONS
         KEEP(*(.external_app.app_lcd_gamma.application_information));
         */external/lcd_gamma/*(*ui*external_app*lcd_gamma*);
     } > ram_external_app_lcd_gamma
+
+    .external_app_auto_repeater : ALIGN(4) SUBALIGN(4)
+    {
+        KEEP(*(.external_app.app_auto_repeater.application_information));
+        */external/auto_repeater/*(*ui*external_app*auto_repeater*);
+    } > ram_external_app_auto_repeater
+
+    .external_app_meshtastic : ALIGN(4) SUBALIGN(4)
+    {
+        KEEP(*(.external_app.app_meshtastic.application_information));
+        */external/meshtastic/*(*ui*external_app*meshtastic*);
+    } > ram_external_app_meshtastic
+
+    .external_app_subghz_chat : ALIGN(4) SUBALIGN(4)
+    {
+        KEEP(*(.external_app.app_subghz_chat.application_information));
+        */external/subghz_chat/*(*ui*external_app*subghz_chat*);
+    } > ram_external_app_subghz_chat
+
+    .external_app_vdl2_rx : ALIGN(4) SUBALIGN(4)
+    {
+        KEEP(*(.external_app.app_vdl2_rx.application_information));
+        */external/vdl2_rx/*(*ui*external_app*vdl2_rx*);
+    } > ram_external_app_vdl2_rx
 }

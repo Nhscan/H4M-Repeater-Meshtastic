@@ -180,6 +180,7 @@ class SettingsManager {
 
     /* True if settings were successfully loaded from file. */
     bool loaded() const { return loaded_; }
+    void save();
 
     Mode mode() const { return settings_.mode; }
 

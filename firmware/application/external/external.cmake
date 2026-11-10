@@ -1,4 +1,8 @@
 set(EXTCPPSRC
+	external/meshtastic/main.cpp
+	external/meshtastic/ui_meshtastic_launcher.cpp
+	external/auto_repeater/main.cpp
+	external/auto_repeater/ui_auto_repeater.cpp
 	#afsk_rx   16 byte
 	external/afsk_rx/main.cpp
 	external/afsk_rx/ui_afsk_rx.cpp
@@ -444,6 +448,8 @@ set(EXTCPPSRC
 )
 
 set(EXTAPPLIST
+	meshtastic
+	auto_repeater
 	afsk_rx
 	calculator
 	font_viewer

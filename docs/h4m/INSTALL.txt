@@ -1,0 +1,68 @@
+H4M AUTO REPEATER + MESHTASTIC v0.3.1
+NIGHTLY BASE: n_261109 (November 9, 2026)
+CUSTOM FIRMWARE VERSION: n_261109_ar04
+
+UPDATE FROM WORKING v0.3.0 / n_261109_ar03
+1. Extract this ZIP. Copy everything INSIDE SD_CARD onto your SD card's root.
+   Replace matching APPS, BASEBAND and FIRMWARE files; retain your other data.
+2. On the H4M, open Utilities > Flash Utility and choose:
+   H4M_AR04.ppfw.tar
+3. Let flashing complete and restart. Check About shows n_261109_ar04.
+4. Open Auto Repeater. The button should read START AUTO, then STOP AUTO
+   after starting. A clean event should record, count down, transmit and rearm.
+
+REPEATER FIXES BASED ON YOUR VIDEO
+- Text is refreshed at most 5 times/second and unchanged labels are not
+  repainted. START AUTO / STOP AUTO are stable, short captions.
+- Capture loss accounting covers the retained prebuffer and current event.
+  A drop from an earlier idle listening period no longer rejects a clean event.
+- CaptureThread stops before its final counters and ring positions are read.
+- End silence means the signal stays BELOW the selected Trigger for the
+  configured silence interval. Background noise between Trigger and the old
+  hysteresis boundary no longer holds every burst open until Max record time.
+- If an actual capture gap remains, the recording is kept, SKIP increases,
+  and Auto cools down and listens again. Damaged captures are not auto-sent
+  or exported to .SUB. Clean captures follow the normal TX delay/repeat path.
+- SD creation/write/space errors remain explicit stop conditions. This does
+  not conceal disk errors or claim that every RF waveform was captured cleanly.
+
+FIRST TEST
+Use a fixed frequency with receive hopping off. Set the trigger above the
+idle level, or use Settings > Auto level with the remote quiet. Leave Save
+checked. Test a short signal and watch REC, TX and SKIP.
+Timing > End silence controls how soon recording ends after the burst.
+Timing > Rearm margin applies only to optional Wait quiet before rearm.
+
+WINDOWS USB ALTERNATIVE / REQUIRED FOR v0.2.x
+The v0.2.0/0.2.1 builds omitted their internal flashing component. For those,
+or if SD flashing is unavailable, use USB instead:
+1. Copy SD_CARD contents as above; connect the H4M with a USB data cable.
+2. Select HackRF mode on the H4M.
+3. Open USB_FLASH_WINDOWS and run START_H4M.bat.
+4. Wait for SUCCESS and byte-for-byte read-back verification, then restart.
+The script keeps H4M-before-flash.bin and verifies H4M-readback.bin.
+If HackRF mode is unavailable, RECOVER_DFU_H4M.bat loads the official .dfu
+into RAM before calling the same custom flash/read-back procedure.
+Official guide:
+https://github.com/portapack-mayhem/mayhem-firmware/wiki/Update-firmware
+
+LINUX / MAC USB ALTERNATIVE
+With HackRF tools installed, select HackRF mode, connect USB and run:
+  hackrf_spiflash -w portapack-mayhem_n_261109_ar04.bin
+The .bin is in SD_CARD/FIRMWARE. Restart and check the version afterward.
+
+MATCHING FILES
+Firmware and all 104 PPMA files use compatibility ID 0x110571d8. Keep the
+matching APPS and BASEBAND folders. Stock n_261109 apps have a different ID.
+The internal updater restored in v0.3.0 remains present. No SD format is needed.
+
+MESHTASTIC
+Retains the v0.3.0 startup/RAM fix. Match region, preset, channel and key to
+another node; see MESH-GUIDE.md. Software LoRa remains experimental with
+packet-size/SF limitations. Your v0.3.0 opening test does not verify RF exchange.
+
+TEST STATUS
+Host regressions exercise the actual loss-window/UI helpers, timer wrap,
+the video's -44 Trigger / -47 background case, normal TX/rearm and skipped
+capture rearm. Firmware/app checksum, version, layout and runtime RAM checks
+are included. This update still needs physical H4M display/RF/SD verification.

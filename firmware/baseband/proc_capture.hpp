@@ -24,6 +24,7 @@
 #define __PROC_CAPTURE_HPP__
 
 #include "baseband_processor.hpp"
+#include "repeater_ook.hpp"
 #include "baseband_thread.hpp"
 #include "rssi_thread.hpp"
 
@@ -127,6 +128,7 @@ class CaptureProcessor : public BasebandProcessor {
         NoopDecim>
         decim_1{};
 
+    RepeaterOOK repeater_decoder{};
     int32_t channel_filter_low_f = 0;
     int32_t channel_filter_high_f = 0;
     int32_t channel_filter_transition = 0;

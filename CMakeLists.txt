@@ -112,7 +112,13 @@ project(portapack-h1)
 
 set(EXPECTED_GCC_VERSION "9.2.1")
 
-set(VERSION "$ENV{VERSION_STRING}")
+# Keep a custom build's identity stable when Ninja regenerates CMake without
+# the configure-time environment. Firmware and every PPMA must use one ID.
+set(MAYHEM_CUSTOM_VERSION "" CACHE STRING "Persistent custom firmware version")
+set(VERSION "${MAYHEM_CUSTOM_VERSION}")
+if ("${VERSION}" STREQUAL "")
+    set(VERSION "$ENV{VERSION_STRING}")
+endif()
 if ("${VERSION}" STREQUAL "")
 	execute_process(
 		COMMAND git log -n 1 --format=%h

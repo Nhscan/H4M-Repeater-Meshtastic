@@ -41,16 +41,21 @@ CaptureThread::CaptureThread(
     size_t write_size,
     size_t buffer_count,
     std::function<void()> success_callback,
-    std::function<void(File::Error)> error_callback)
+    std::function<void(File::Error)> error_callback,
+    size_t stack_size)
     : config{write_size, buffer_count},
       writer{std::move(writer)},
       success_callback{std::move(success_callback)},
       error_callback{std::move(error_callback)} {
     // Need significant stack for FATFS
-    thread = chThdCreateFromHeap(NULL, 1024, NORMALPRIO + 10, CaptureThread::static_fn, this);
+    thread = chThdCreateFromHeap(NULL, stack_size, NORMALPRIO + 10, CaptureThread::static_fn, this);
 }
 
 CaptureThread::~CaptureThread() {
+    stop();
+}
+
+void CaptureThread::stop() {
     if (thread) {
         chThdTerminate(thread);
         chThdWait(thread);

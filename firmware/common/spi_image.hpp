@@ -141,6 +141,8 @@ constexpr image_tag_t image_tag_rds_rx{'P', 'R', 'R', 'D'};
 constexpr image_tag_t image_tag_wmbus_rx{'P', 'W', 'M', 'B'};
 constexpr image_tag_t image_tag_vdl2_rx{'P', 'V', 'D', 'L'};
 constexpr image_tag_t image_tag_subghz_chat{'P', 'C', 'H', 'T'};
+constexpr image_tag_t image_tag_lora_rx{'P', 'L', 'O', 'R'};
+constexpr image_tag_t image_tag_lora_tx{'P', 'L', 'O', 'T'};
 
 constexpr image_tag_t image_tag_noop{'P', 'N', 'O', 'P'};
 

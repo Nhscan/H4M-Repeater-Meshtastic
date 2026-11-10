@@ -210,6 +210,14 @@ set(CPPSRC
 	${COMMON}/gpio.cpp
 	app_settings.cpp
 	audio.cpp
+	apps/ui_meshtastic.cpp
+	apps/mesh/mesh_protocol.cpp
+	apps/mesh/mesh_crypto.cpp
+	apps/mesh/mesh_nodedb.cpp
+	apps/mesh/mesh_router.cpp
+	apps/mesh/mesh_pki.cpp
+	repeater_files.cpp
+	repeater_engine.cpp
 	baseband_api.cpp
 	capture_thread.cpp
 	clock_manager.cpp
@@ -537,3 +545,23 @@ add_custom_target(
 )
 
 add_dependencies(${PROJECT_NAME} baseband)
+
+set(baseband_BINARY_DIR ${CMAKE_BINARY_DIR}/firmware/baseband)
+set(REPEATER_IMAGES PCAP PREP PAMA PNFM PWFM PRAT)
+set(REPEATER_IMAGE_FILES)
+foreach(image ${REPEATER_IMAGES})
+    list(APPEND REPEATER_IMAGE_FILES ${baseband_BINARY_DIR}/${image}.bin)
+endforeach()
+add_custom_command(OUTPUT ${baseband_BINARY_DIR}/ARSV.bin
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/../tools/make_repeater_reserve.py ${baseband_BINARY_DIR}/ARSV.bin ${REPEATER_IMAGE_FILES}
+    DEPENDS ${REPEATER_IMAGE_FILES} ${PROJECT_SOURCE_DIR}/../tools/make_repeater_reserve.py)
+add_custom_target(repeater_reserve DEPENDS ${baseband_BINARY_DIR}/ARSV.bin)
+add_dependencies(repeater_reserve baseband)
+add_dependencies(application repeater_reserve)
+
+add_custom_command(OUTPUT ${baseband_BINARY_DIR}/MSRV.bin
+    COMMAND python3 ${PROJECT_SOURCE_DIR}/../tools/make_repeater_reserve.py ${baseband_BINARY_DIR}/MSRV.bin ${baseband_BINARY_DIR}/PLOR.bin ${baseband_BINARY_DIR}/PLOT.bin
+    DEPENDS ${baseband_BINARY_DIR}/PLOR.bin ${baseband_BINARY_DIR}/PLOT.bin ${PROJECT_SOURCE_DIR}/../tools/make_repeater_reserve.py)
+add_custom_target(mesh_reserve DEPENDS ${baseband_BINARY_DIR}/MSRV.bin)
+add_dependencies(mesh_reserve baseband)
+add_dependencies(application mesh_reserve)

@@ -28,6 +28,7 @@
 #include "spi_image.hpp"
 
 bool m4_init(const portapack::spi_flash::image_tag_t image_tag, const portapack::memory::region_t to, const bool full_reset);
+bool m4_image_available(portapack::spi_flash::image_tag_t image_tag);
 void m4_init_prepared(const uint32_t m4_code, const bool full_reset);
 
 // Registers how to re-copy the external app's bundled baseband into m4_code (marks it as loaded).

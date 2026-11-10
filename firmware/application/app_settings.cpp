@@ -317,4 +317,9 @@ SettingsManager::~SettingsManager() {
     save_settings(app_name_, bindings_);
 }
 
+void SettingsManager::save() {
+    copy_from_radio_model(settings_);
+    save_settings(app_name_, bindings_);
+}
+
 }  // namespace app_settings

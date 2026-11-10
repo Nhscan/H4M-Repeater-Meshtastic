@@ -22,6 +22,7 @@
 
 #include "baseband_api.hpp"
 #include <cstring>
+#include "file.hpp"
 
 #include "audio.hpp"
 #include "tonesets.hpp"
@@ -510,8 +511,18 @@ void run_image(const spi_flash::image_tag_t image_tag, bool enforce_core_sync) {
                        image_tag == spi_flash::image_tag_wfm_audio ||
                        image_tag == spi_flash::image_tag_capture;
     if (!m4_init(image_tag, memory::map::m4_code, false)) {
-        m4_restore_bundled();
-        m4_init_prepared(portapack::memory::map::m4_code.base(), false);
+        const auto* tag_bytes=reinterpret_cast<const char*>(&image_tag);
+        const std::filesystem::path path{std::string("BASEBAND/")+std::string(tag_bytes,4)+".bin"};
+        File image;
+        if(image.open(path)||!image.size()||image.size()>memory::map::m4_code.size())chDbgPanic("SD Baseband Missing");
+        uint32_t offset=0;
+        while(offset<image.size()){
+            const auto count=std::min<uint64_t>(512,image.size()-offset);
+            auto result=image.read(reinterpret_cast<void*>(memory::map::m4_code.base()+offset),count);
+            if(result.is_error()||result.value()!=count)chDbgPanic("SD Baseband Read");
+            offset+=count;
+        }
+        m4_init_prepared(memory::map::m4_code.base(),false);
     }
     baseband_image_running = true;
 
@@ -638,5 +649,18 @@ void request_audio_beep(uint32_t freq, uint32_t sample_rate, uint32_t duration_m
     AudioBeepMessage message{freq, sample_rate, duration_ms};
     send_message(&message);
 }
+
+void set_lora_config(uint8_t spreading_factor, uint32_t bandwidth_hz, uint8_t coding_rate, uint32_t local_node_id) {
+    LoRaConfigureMessage message{spreading_factor, bandwidth_hz, coding_rate, local_node_id};
+    send_message(&message);
+}
+
+void send_lora_packet(const uint8_t* data, size_t len) {
+    LoRaPacketMessage message{};
+    message.length = static_cast<uint8_t>(std::min(len, LoRaPacketMessage::MAX_DATA));
+    std::memcpy(message.data, data, message.length);
+    send_message(&message);
+}
+
 
 } /* namespace baseband */

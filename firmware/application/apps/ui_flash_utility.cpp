@@ -151,6 +151,12 @@ std::filesystem::path FlashUtilityView::extract_tar(std::filesystem::path::strin
 
 bool FlashUtilityView::flash_firmware(std::filesystem::path::string_type path) {
     ui::Painter painter;
+    // Check before unpacking: otherwise new apps could replace the old ones
+    // even though this firmware cannot run the SPI flash writer.
+    if (!m4_image_available(portapack::spi_flash::image_tag_flash_utility)) {
+        nav_.display_modal("Updater missing", "Use HackRF mode and USB\nto install firmware.");
+        return false;
+    }
     menu_view.hidden(true);
     if (endsWith(path, u".tar")) {
         // extract, then update
@@ -174,7 +180,10 @@ bool FlashUtilityView::flash_firmware(std::filesystem::path::string_type path) {
     painter.draw_string({12, 124}, this->nav_.style(), "Device will then restart.");
 
     std::memcpy(&shared_memory.bb_data.data[0], path.c_str(), (path.length() + 1) * 2);
-    m4_init(portapack::spi_flash::image_tag_flash_utility, portapack::memory::map::m4_code, false);
+    if (!m4_init(portapack::spi_flash::image_tag_flash_utility, portapack::memory::map::m4_code, false)) {
+        menu_view.hidden(false);
+        return false;
+    }
     m0_halt();
     return true;  // fixes compiler warning (line should not be reached due to halt)
 }
