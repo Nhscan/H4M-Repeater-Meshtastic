@@ -1,24 +1,11 @@
-# Open-channel fix and receive diagnostics (unreleased)
+# Channel-key fix and receive diagnostics (ar05)
 
-The custom-channel picker labels an empty key as `open`, but previously
-`derive_channel_key` returned a synthetic AES-128 key beginning with 01.
-`apply_channels` then always installed 16 key bytes. Both the channel hash
-and payload encryption differed from a stock Meshtastic channel with no PSK.
+Custom channels with empty keys now use a zero-length PSK and the correct channel hash. The previous implementation generated a synthetic AES key despite displaying 'open'.
 
-Empty keys now install a zero-length PSK and hash only the channel name.
-Raw 32-character hexadecimal keys and existing passphrases keep their previous
-128-bit key derivation. Public Primary-channel behavior is unchanged.
+Custom channel keys support 128-bit and 256-bit raw hex or padded Base64. Typed entry allows 64 characters. Import key reads a key-only .TXT file. Existing custom passphrases retain their prior derivation. Primary-channel default-key behavior is unchanged.
 
-The chat also reports the first router decode failure, and then each group
-of eight failures. This distinguishes a demodulated frame that fails parsing
-or decryption from no frame reaching the router. Existing channel-hash
-diagnostics remain separate. This does not yet expose M4 preamble/header failures.
+Receive decode failures are reported on the first failure and every group of eight. Channel-hash diagnostics remain separate.
 
-Validation: `test_mesh_channel_key` uses the actual firmware router and crypto
-with a standard plaintext Data-protobuf fixture. It reproduces rejection by
-the previous synthetic-key setup, verifies open-channel RX/TX, raw keys,
-legacy passphrases, and removal of a key. Existing `test_mesh_router` passes.
+The ARM build and layout, runtime-memory, installation and update-archive checks passed. The corrected Flash Utility archive uses USTAR headers with explicit directories. Craig flashed it successfully. The PortaPack imported a 256-bit key and exchanged text in both directions with the LILYGO on the test secondary channel. Repeated delivery still needs investigation.
 
-Not yet ARM-built or flashed. These tests do not establish RF interoperability
-or resolve the separate intermittent receive problem observed on hardware.
-Build matching FIRMWARE/APPS/BASEBAND using docs/h4m/BUILD.txt before testing.
+See AR05-RELEASE-NOTES.md for test scope and remaining validation. Download the complete SD-card and Windows flashing package from the ar05 GitHub release.
