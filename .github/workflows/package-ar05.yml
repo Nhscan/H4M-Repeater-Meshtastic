@@ -55,6 +55,16 @@ jobs:
               "Custom channels accept blank (open), 32/64 hex digits, or padded Base64 keys.\n"
               "Select a custom channel and use Import key for an SD .TXT containing only the key.\n"
               "Hardware interoperability testing is pending.\n")
+          usb = root / "USB_FLASH_WINDOWS"
+          shutil.copytree("flashing", usb)
+          (usb/"firmware").mkdir()
+          shutil.copy2(image, usb/"firmware/firmware_hackrf.bin")
+          (usb/"START_H4M.bat").write_bytes("@echo off\r\nsetlocal\r\npushd \"%~dp0\"\r\necho H4M / HackRF One ONLY - custom Mayhem n_261109_ar05\r\necho.\r\necho 1. Close other SDR programs and connect just this HackRF by USB.\r\necho 2. Select HackRF mode on the H4M. After DFU recovery, it is already in that mode.\r\necho 3. Keep the USB cable connected until the read-back check completes.\r\necho.\r\npause\r\n\"utils\\hackrf_info.exe\"\r\nif errorlevel 1 goto failed\r\nif exist \"H4M-before-flash.bin\" goto backup_done\r\n\"utils\\hackrf_spiflash.exe\" -l 1048576 -r \"H4M-before-flash.bin\"\r\nif errorlevel 1 goto failed\r\n:backup_done\r\n\"utils\\hackrf_spiflash.exe\" -w \"firmware\\firmware_hackrf.bin\"\r\nif errorlevel 1 goto failed\r\n\"utils\\hackrf_spiflash.exe\" -l 1048576 -r \"H4M-readback.bin\"\r\nif errorlevel 1 goto failed\r\nfc /b \"firmware\\firmware_hackrf.bin\" \"H4M-readback.bin\" >nul\r\nif errorlevel 1 goto mismatch\r\necho.\r\necho SUCCESS: Flash read-back matches the custom firmware byte for byte.\r\necho Restart the H4M, check About shows n_261109_ar05, then open both TRX apps.\r\npause\r\npopd\r\nexit /b 0\r\n:mismatch\r\necho ERROR: Flash read-back did not match. Do not assume installation succeeded.\r\ngoto finish_error\r\n:failed\r\necho ERROR: USB operation failed. The new firmware has NOT been verified.\r\necho Check cable, HackRF mode and drivers. See START-HERE.txt for recovery.\r\n:finish_error\r\npause\r\npopd\r\nexit /b 1\r\n\r\n".encode())
+          (usb/"START_AR05.bat").write_bytes(b'@echo off\r\ncall "%~dp0START_H4M.bat"\r\n')
+          assert (usb/"utils/hackrf_spiflash.exe").is_file()
+          assert (usb/"utils/hackrf_info.exe").is_file()
+          assert (usb/"firmware/firmware_hackrf.bin").read_bytes() == image.read_bytes()
+          (root/"START-HERE.txt").write_text((root/"START-HERE.txt").read_text()+"\nWINDOWS USB ALTERNATIVE\nCopy SD_CARD contents first. Connect USB and select HackRF mode on the H4M.\nOpen USB_FLASH_WINDOWS and run START_H4M.bat. It backs up flash, writes ar05,\nthen reads it back and compares every byte. Wait for SUCCESS before restarting.\n")
           (root/"SHA256SUMS.txt").write_text("".join(
               hashlib.sha256(p.read_bytes()).hexdigest()+"  "+p.relative_to(root).as_posix()+"\n"
               for p in sorted(root.rglob("*")) if p.is_file()))
