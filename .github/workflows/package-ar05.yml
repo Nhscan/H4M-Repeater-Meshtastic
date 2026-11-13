@@ -51,10 +51,10 @@ jobs:
           while any(raw[offset:offset+512]):
               header = raw[offset:offset+512]
               assert len(header) == 512
-              name = header[:100].split(b"\\0")[0].decode()
+              name = header[:100].split(b"\0")[0].decode()
               kind = header[156:157]
-              size = int(header[124:136].strip(b"\\0 "), 8)
-              assert kind in (b"0", b"\\0", b"5"), (name, kind)
+              size = int(header[124:136].strip(b"\0 ") or b"0", 8)
+              assert kind in (b"0", b"\0", b"5"), (name, kind)
               if kind == b"5":
                   dirs.add(name.rstrip("/"))
               else:
