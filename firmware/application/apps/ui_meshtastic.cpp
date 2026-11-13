@@ -6,6 +6,8 @@
  */
 
 #include "ui_meshtastic.hpp"
+#include "mesh/mesh_channel_key.hpp"
+#include "ui_fileman.hpp"
 #include "ui_qrcode.hpp"
 #include "debug.hpp"
 #include "ch.h"
@@ -3989,13 +3991,32 @@ MeshtasticChannelsView::MeshtasticChannelsView(NavigationView& nav, uint8_t pres
     : nav_(nav), preset_idx_(preset_idx), region_idx_(region_idx), freq_slot_(freq_slot), cr_(cr), names_(names), keys_(keys), enabled_(enabled), active_(active), primary_name_(primary_name), node_db_(node_db), open_dm_(open_dm), on_change_(std::move(on_change)), on_dm_(std::move(on_dm)), make_key_(std::move(make_key)) {
     // The list itself takes focus: the encoder / D-pad move the selection, Select
     // acts on the row. No child widgets, so nothing competes for focus.
-    add_children({&button_del_, &button_rnd_, &button_qr_, &button_bell_});
+    add_children({&button_del_, &button_rnd_, &button_qr_, &button_bell_, &button_import_});
     button_bell_.on_select = [this](Button&) { send_bell(); };
     set_focusable(true);
     // Open on the conversation the chat is showing, so the marked row and the
     // highlighted row agree and the action buttons work on what you were just reading.
     selected_ = row_of_open();
     button_del_.on_select = [this](Button&) { delete_channel(); };
+    button_import_.on_select = [this](Button&) {
+        const int i = target_slot();
+        if (i < 0 || !enabled_[i]) return;
+        auto picker = nav_.push<FileLoadView>(".TXT");
+        picker->on_changed = [this, i](std::filesystem::path path) {
+            File file;
+            char buf[68];
+            uint8_t key[32];
+            if (file.open(path)) return;
+            auto count = file.read(buf, sizeof(buf));
+            if (!count || *count == sizeof(buf)) return;
+            size_t len = *count;
+            while (len && (buf[len-1] == '\n' || buf[len-1] == '\r')) --len;
+            if (!meshtastic::parse_channel_psk(buf, len, key)) return;
+            keys_[i].assign(buf, len);
+            if (on_change_) on_change_();
+            set_dirty();
+        };
+    };
     button_rnd_.on_select = [this](Button&) { randomize_key(); };
     button_qr_.on_select = [this](Button&) { show_qr(); };
 }
@@ -4247,7 +4268,7 @@ void MeshtasticChannelsView::select_or_edit(int i) {
         // Already active -> set/change the encryption KEY (one keyboard, empty =
         // unencrypted). A SEPARATE prompt, never nested after the name - the old
         // name->key nesting read as "the keyboard won't close".
-        mesh_prompt(nav_, keys_[i], 32, [this](std::string&) {
+        mesh_prompt(nav_, keys_[i], 64, [this](std::string&) {
                         if (on_change_) on_change_();
                         set_dirty(); }, false);
     } else {
@@ -4356,7 +4377,7 @@ void MeshtasticChannelsView::show_qr() {
         return;
     }
     const int i = (sel.kind == Row::Channel) ? sel.slot : -1;
-    uint8_t key[16];
+    uint8_t key[32];
     std::string l1, l2;
 
     // Everything the far end needs to end up on our air, not just on our channel.
@@ -4378,7 +4399,7 @@ void MeshtasticChannelsView::show_qr() {
     const uint8_t default_psk = 1;  // "the well known public key", as the phone encodes it
     if (i >= 0 && enabled_[i] && !names_[i].empty()) {
         const bool has_key = !keys_[i].empty();
-        if (has_key) MeshtasticView::derive_channel_key(keys_[i], key);
+        const size_t key_len = MeshtasticView::derive_channel_key(keys_[i], key);
         // A custom channel of ours is a SECONDARY one: it shares the primary's air and
         // is told apart by the channel hash. So the primary rides along, first, or the
         // far end installs ours as its primary instead of beside it.
@@ -4387,7 +4408,7 @@ void MeshtasticChannelsView::show_qr() {
         sh.primary_psk_len = 1;
         sh.name = names_[i].c_str();
         sh.psk = key;
-        sh.psk_len = has_key ? sizeof(key) : 0;
+        sh.psk_len = key_len;
         qr_url_ = meshtastic::channel_share_url(sh);
         l1 = "Channel " + names_[i];
         l2 = std::string(meshtastic::PRESET_CHANNEL_NAMES[preset_idx_]) +
@@ -6344,6 +6365,16 @@ void MeshtasticView::on_timer() {
         }
     }
 
+    {
+        const uint32_t n = router_.counters().rx_bad;
+        if (n != bad_decode_seen_) {
+            const bool report = bad_decode_seen_ == 0 || n / 8 != bad_decode_seen_ / 8;
+            bad_decode_seen_ = n;
+            if (report)
+                chat_view_.write_console("* RX decode failed n" + to_string_dec_uint(n) + "\n");
+        }
+    }
+
     if (trace_dest_ && !tx_pending_) {
         const uint32_t asker = trace_dest_;
         const uint32_t req_id = trace_req_id_;
@@ -6872,22 +6903,10 @@ void MeshtasticView::broadcast_telemetry() {
     }
 }
 
-void MeshtasticView::derive_channel_key(const std::string& text, uint8_t out[16]) {
-    bool all_hex = (text.size() == 32);
-    for (size_t i = 0; all_hex && i < 32; i++)
-        if (hex_digit(text[i]) < 0) all_hex = false;
-    if (all_hex) {  // exact 32 hex -> raw AES-128 key
-        for (int i = 0; i < 16; i++)
-            out[i] = static_cast<uint8_t>((hex_digit(text[2 * i]) << 4) | hex_digit(text[2 * i + 1]));
-        return;
-    }
-    for (int i = 0; i < 16; i++) out[i] = 0;  // else derive from passphrase
-    if (text.empty()) {
-        out[0] = 1;
-        return;
-    }
-    for (size_t i = 0; i < 16; i++)
-        out[i] = static_cast<uint8_t>(text[i % text.size()] ^ (0x9E * (i + 1)));
+size_t MeshtasticView::derive_channel_key(const std::string& text, uint8_t out[32]) {
+    const size_t parsed = meshtastic::parse_channel_psk(text.data(), text.size(), out);
+    if (parsed) return parsed;
+    return meshtastic::derive_custom_channel_key(text.data(), text.size(), out);
 }
 
 void MeshtasticView::apply_channels() {
@@ -6908,11 +6927,11 @@ void MeshtasticView::apply_channels() {
     for (int i = 0; i < MeshSettings::NUM_CUSTOM; i++) {
         const bool on = cfg_.ch_enabled[i] && !cfg_.ch_name[i].empty();
         if (on) {
-            uint8_t key[16];
-            derive_channel_key(cfg_.ch_key[i], key);
+            uint8_t key[32];
+            const size_t key_len = derive_channel_key(cfg_.ch_key[i], key);
             router_.set_channel(i + 1,
-                                meshtastic::channel_hash(cfg_.ch_name[i].c_str(), key, 16),
-                                key, 16, true);
+                                meshtastic::channel_hash(cfg_.ch_name[i].c_str(), key, key_len),
+                                key, key_len, true);
         } else {
             router_.set_channel(i + 1, 0, nullptr, 0, false);
         }

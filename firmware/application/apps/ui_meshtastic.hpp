@@ -2032,6 +2032,7 @@ class MeshtasticChannelsView : public View {
 
     // Actions on the highlighted row. Buttons rather than list rows: pick the channel
     // with the D-pad, then tap the action - no walking back through the list.
+    Button button_import_{{152, BTN_Y - 26, 88, 24}, "Import key"};
     Button button_del_{{0, BTN_Y, 58, 26}, "Delete"};
     Button button_rnd_{{61, BTN_Y, 58, 26}, "Rnd key"};
     Button button_qr_{{122, BTN_Y, 58, 26}, "QR"};
@@ -2047,7 +2048,7 @@ class MeshtasticView : public View {
     explicit MeshtasticView(NavigationView& nav);
     // Passphrase (or 32 hex characters, taken as a raw AES-128 key) -> channel key.
     // Public because the conversations view builds a channel QR code from it.
-    static void derive_channel_key(const std::string& text, uint8_t out[16]);
+    static size_t derive_channel_key(const std::string& text, uint8_t out[32]);
     ~MeshtasticView();
 
     void focus() override;
@@ -2234,6 +2235,7 @@ class MeshtasticView : public View {
     // metrics one below: assembling and encrypting a packet inside the RX callback is
     // far more stack than that callback has.
     uint32_t bad_hash_seen_{0};  // last reported channel-filter rejection count
+    uint32_t bad_decode_seen_{0};  // rate-limited receive/decryption failures
     uint32_t trace_dest_{0};
     uint32_t trace_req_id_{0};
     float trace_snr_{0.0f};

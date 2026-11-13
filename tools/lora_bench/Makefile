@@ -28,7 +28,7 @@ ROUTER_SRC  = $(APP)/mesh_router.cpp $(APP)/mesh_protocol.cpp \
 
 TESTS = test_lora_framing test_lora_ref test_lora_rssi \
         test_mesh_regions test_mesh_crypto test_mesh_router \
-        test_mesh_telemetry test_mesh_partial
+        test_mesh_telemetry test_mesh_partial test_mesh_channel_key
 
 all: run
 
@@ -53,6 +53,9 @@ test_mesh_router: test_mesh_router.cpp $(ROUTER_SRC)
 	$(CXX) $(CXXFLAGS) $(INC) -o $@ $^
 
 test_mesh_telemetry: test_mesh_telemetry.cpp $(ROUTER_SRC)
+	$(CXX) $(CXXFLAGS) $(INC) -o $@ $^
+
+test_mesh_channel_key: test_mesh_channel_key.cpp $(ROUTER_SRC)
 	$(CXX) $(CXXFLAGS) $(INC) -o $@ $^
 
 test_mesh_partial: test_mesh_partial.cpp $(ROUTER_SRC)

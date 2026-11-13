@@ -1,5 +1,7 @@
 # H4M Auto Repeater + Meshtastic
 
+Latest test build: [ar05 downloads and changes](https://github.com/Nhscan/H4M-Repeater-Meshtastic/releases/tag/ar05). Includes the complete SD-card and Windows flash package.
+
 Community test firmware for **HackRF One + PortaPack H4M**, based on Mayhem nightly **n_261109**.
 
 ![Auto Repeater demo](docs/h4m/media/demo-preview.gif)
