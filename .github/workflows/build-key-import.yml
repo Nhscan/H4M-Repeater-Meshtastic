@@ -1,0 +1,52 @@
+name: Build H4M key import
+on:
+  push:
+    branches: [build/meshtastic-key-import-ar05]
+permissions:
+  contents: read
+jobs:
+  firmware:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Prepare synchronized source
+        run: |
+          git config user.name Builder
+          git config user.email builder@localhost
+          git fetch https://github.com/portapack-mayhem/mayhem-firmware.git 2b7e3b4023b46d4e2c557ffa205a1e02a8caef12
+          if ! git merge --no-commit FETCH_HEAD; then
+            python3 tools/update_external_tier_ld.py
+            git add firmware/application/external/external_tier*.ld
+            test -z "$(git diff --name-only --diff-filter=U)"
+          fi
+          git apply ci/ar05.patch
+          git submodule update --init --recursive
+      - name: Compile and validate
+        run: |
+          set -e
+          source_dir=$(pwd)
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install -y git tar wget dfu-util cmake python3 python3-pyelftools python3-lz4 python3-yaml ccache bzip2 liblz4-tool curl ninja-build
+          sudo apt-get -y autoremove
+          
+          mkdir -p $RUNNER_TEMP/arm
+          cd $RUNNER_TEMP/arm
+          wget -O gcc-arm-none-eabi "https://developer.arm.com/-/media/Files/downloads/gnu-rm/9-2019q4/gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2?revision=108bd959-44bd-4619-9c19-26187abf5225&la=en&hash=E788CE92E5DFD64B2A8C246BBA91A249CB8E2D2D"
+          mkdir -p armbin
+          tar --strip=1 -xjf gcc-arm-none-eabi -C armbin
+          export PATH=$RUNNER_TEMP/arm/armbin/bin:$PATH
+          cd "$source_dir"
+          python3 tools/update_external_tier_ld.py
+          cmake -S . -B build -G Ninja -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DMAYHEM_CUSTOM_VERSION=n_261109_ar05
+          cmake --build build --target oci -j6
+          python3 tests/auto_repeater/check_layout.py build
+          python3 tests/auto_repeater/check_runtime_memory.py build
+          python3 tests/auto_repeater/check_install.py build n_261109_ar05
+      - uses: actions/upload-artifact@v4
+        with:
+          name: h4m-ar05
+          path: build/firmware/portapack-mayhem_OCI.ppfw.tar
+          if-no-files-found: error
