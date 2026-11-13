@@ -1,0 +1,397 @@
+diff --git a/docs/h4m/RX-CHANNEL-FIX.md b/docs/h4m/RX-CHANNEL-FIX.md
+new file mode 100644
+index 00000000..d5176a0b
+--- /dev/null
++++ b/docs/h4m/RX-CHANNEL-FIX.md
+@@ -0,0 +1,24 @@
++# Open-channel fix and receive diagnostics (unreleased)
++
++The custom-channel picker labels an empty key as `open`, but previously
++`derive_channel_key` returned a synthetic AES-128 key beginning with 01.
++`apply_channels` then always installed 16 key bytes. Both the channel hash
++and payload encryption differed from a stock Meshtastic channel with no PSK.
++
++Empty keys now install a zero-length PSK and hash only the channel name.
++Raw 32-character hexadecimal keys and existing passphrases keep their previous
++128-bit key derivation. Public Primary-channel behavior is unchanged.
++
++The chat also reports the first router decode failure, and then each group
++of eight failures. This distinguishes a demodulated frame that fails parsing
++or decryption from no frame reaching the router. Existing channel-hash
++diagnostics remain separate. This does not yet expose M4 preamble/header failures.
++
++Validation: `test_mesh_channel_key` uses the actual firmware router and crypto
++with a standard plaintext Data-protobuf fixture. It reproduces rejection by
++the previous synthetic-key setup, verifies open-channel RX/TX, raw keys,
++legacy passphrases, and removal of a key. Existing `test_mesh_router` passes.
++
++Not yet ARM-built or flashed. These tests do not establish RF interoperability
++or resolve the separate intermittent receive problem observed on hardware.
++Build matching FIRMWARE/APPS/BASEBAND using docs/h4m/BUILD.txt before testing.
+diff --git a/firmware/application/apps/mesh/mesh_channel_key.hpp b/firmware/application/apps/mesh/mesh_channel_key.hpp
+new file mode 100644
+index 00000000..76f60175
+--- /dev/null
++++ b/firmware/application/apps/mesh/mesh_channel_key.hpp
+@@ -0,0 +1,69 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++#ifndef __MESH_CHANNEL_KEY_H__
++#define __MESH_CHANNEL_KEY_H__
++#include "mesh_crypto.hpp"
++#include <cstddef>
++#include <cstdint>
++namespace meshtastic {
++inline int channel_key_hex_digit(char c) {
++    if (c >= '0' && c <= '9') return c - '0';
++    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
++    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
++    return -1;
++}
++// Decode standard padded Base64 PSKs and raw hexadecimal AES keys.
++inline size_t parse_channel_psk(const char* text, size_t len, uint8_t* out) {
++    if (len == 32 || len == 64) {
++        for (size_t i = 0; i < len; ++i)
++            if (channel_key_hex_digit(text[i]) < 0) return 0;
++        for (size_t i = 0; i < len / 2; ++i)
++            out[i] = (channel_key_hex_digit(text[2*i]) << 4) | channel_key_hex_digit(text[2*i+1]);
++        return len / 2;
++    }
++    if (len != 4 && len != 24 && len != 44) return 0;
++    const size_t padding = len == 44 ? 1 : 2;
++    unsigned bits = 0, acc = 0;
++    uint8_t bytes[32];
++    size_t n = 0;
++    for (size_t i = 0; i < len; ++i) {
++        char c = text[i];
++        if (i >= len - padding) {
++            if (c != '=') return 0;
++            continue;
++        }
++        int v = c >= 'A' && c <= 'Z' ? c-'A' : c >= 'a' && c <= 'z' ? c-'a'+26 :
++                c >= '0' && c <= '9' ? c-'0'+52 : c=='+' ? 62 : c=='/' ? 63 : -1;
++        if (v < 0) return 0;
++        acc = (acc << 6) | v;
++        bits += 6;
++        if (bits >= 8) { bits -= 8; bytes[n++] = acc >> bits; }
++    }
++    if (acc & ((1u << bits)-1)) return 0;
++    if (n == 1) {
++        if (!bytes[0]) return 0;
++        for (size_t i=0; i<16; ++i) out[i]=DEFAULT_PSK[i];
++        out[15] += bytes[0]-1;
++        return 16;
++    }
++    for (size_t i=0; i<n; ++i) out[i]=bytes[i];
++    return n;
++}
++// Empty means no encryption. Preserve the existing raw-key/passphrase formats.
++inline size_t derive_custom_channel_key(const char* text, size_t len, uint8_t out[16]) {
++    for (size_t i = 0; i < 16; ++i) out[i] = 0;
++    if (!len) return 0;
++    bool hex = len == 32;
++    for (size_t i = 0; hex && i < len; ++i)
++        if (channel_key_hex_digit(text[i]) < 0) hex = false;
++    if (hex) {
++        for (size_t i = 0; i < 16; ++i)
++            out[i] = static_cast<uint8_t>((channel_key_hex_digit(text[2 * i]) << 4) |
++                                           channel_key_hex_digit(text[2 * i + 1]));
++    } else {
++        for (size_t i = 0; i < 16; ++i)
++            out[i] = static_cast<uint8_t>(text[i % len] ^ (0x9E * (i + 1)));
++    }
++    return 16;
++}
++}  // namespace meshtastic
++#endif
+diff --git a/firmware/application/apps/ui_meshtastic.cpp b/firmware/application/apps/ui_meshtastic.cpp
+index 653fd42e..c14b54ce 100644
+--- a/firmware/application/apps/ui_meshtastic.cpp
++++ b/firmware/application/apps/ui_meshtastic.cpp
+@@ -6,6 +6,8 @@
+  */
+ 
+ #include "ui_meshtastic.hpp"
++#include "mesh/mesh_channel_key.hpp"
++#include "ui_fileman.hpp"
+ #include "ui_qrcode.hpp"
+ #include "debug.hpp"
+ #include "ch.h"
+@@ -3989,13 +3991,32 @@ MeshtasticChannelsView::MeshtasticChannelsView(NavigationView& nav, uint8_t pres
+     : nav_(nav), preset_idx_(preset_idx), region_idx_(region_idx), freq_slot_(freq_slot), cr_(cr), names_(names), keys_(keys), enabled_(enabled), active_(active), primary_name_(primary_name), node_db_(node_db), open_dm_(open_dm), on_change_(std::move(on_change)), on_dm_(std::move(on_dm)), make_key_(std::move(make_key)) {
+     // The list itself takes focus: the encoder / D-pad move the selection, Select
+     // acts on the row. No child widgets, so nothing competes for focus.
+-    add_children({&button_del_, &button_rnd_, &button_qr_, &button_bell_});
++    add_children({&button_del_, &button_rnd_, &button_qr_, &button_bell_, &button_import_});
+     button_bell_.on_select = [this](Button&) { send_bell(); };
+     set_focusable(true);
+     // Open on the conversation the chat is showing, so the marked row and the
+     // highlighted row agree and the action buttons work on what you were just reading.
+     selected_ = row_of_open();
+     button_del_.on_select = [this](Button&) { delete_channel(); };
++    button_import_.on_select = [this](Button&) {
++        const int i = target_slot();
++        if (i < 0 || !enabled_[i]) return;
++        auto picker = nav_.push<FileLoadView>(".TXT");
++        picker->on_changed = [this, i](std::filesystem::path path) {
++            File file;
++            char buf[68];
++            uint8_t key[32];
++            if (file.open(path)) return;
++            auto count = file.read(buf, sizeof(buf));
++            if (!count || *count == sizeof(buf)) return;
++            size_t len = *count;
++            while (len && (buf[len-1] == '\n' || buf[len-1] == '\r')) --len;
++            if (!meshtastic::parse_channel_psk(buf, len, key)) return;
++            keys_[i].assign(buf, len);
++            if (on_change_) on_change_();
++            set_dirty();
++        };
++    };
+     button_rnd_.on_select = [this](Button&) { randomize_key(); };
+     button_qr_.on_select = [this](Button&) { show_qr(); };
+ }
+@@ -4247,7 +4268,7 @@ void MeshtasticChannelsView::select_or_edit(int i) {
+         // Already active -> set/change the encryption KEY (one keyboard, empty =
+         // unencrypted). A SEPARATE prompt, never nested after the name - the old
+         // name->key nesting read as "the keyboard won't close".
+-        mesh_prompt(nav_, keys_[i], 32, [this](std::string&) {
++        mesh_prompt(nav_, keys_[i], 64, [this](std::string&) {
+                         if (on_change_) on_change_();
+                         set_dirty(); }, false);
+     } else {
+@@ -4356,7 +4377,7 @@ void MeshtasticChannelsView::show_qr() {
+         return;
+     }
+     const int i = (sel.kind == Row::Channel) ? sel.slot : -1;
+-    uint8_t key[16];
++    uint8_t key[32];
+     std::string l1, l2;
+ 
+     // Everything the far end needs to end up on our air, not just on our channel.
+@@ -4378,7 +4399,7 @@ void MeshtasticChannelsView::show_qr() {
+     const uint8_t default_psk = 1;  // "the well known public key", as the phone encodes it
+     if (i >= 0 && enabled_[i] && !names_[i].empty()) {
+         const bool has_key = !keys_[i].empty();
+-        if (has_key) MeshtasticView::derive_channel_key(keys_[i], key);
++        const size_t key_len = MeshtasticView::derive_channel_key(keys_[i], key);
+         // A custom channel of ours is a SECONDARY one: it shares the primary's air and
+         // is told apart by the channel hash. So the primary rides along, first, or the
+         // far end installs ours as its primary instead of beside it.
+@@ -4387,7 +4408,7 @@ void MeshtasticChannelsView::show_qr() {
+         sh.primary_psk_len = 1;
+         sh.name = names_[i].c_str();
+         sh.psk = key;
+-        sh.psk_len = has_key ? sizeof(key) : 0;
++        sh.psk_len = key_len;
+         qr_url_ = meshtastic::channel_share_url(sh);
+         l1 = "Channel " + names_[i];
+         l2 = std::string(meshtastic::PRESET_CHANNEL_NAMES[preset_idx_]) +
+@@ -4520,6 +4541,25 @@ MeshProfilePageView::MeshProfilePageView(NavigationView& nav, MeshSettings& cfg,
+             changed(); }, false);
+     };
+ 
++    button_import_.on_select = [this](Button&) {
++        const int i = target_slot();
++        if (i < 0 || !enabled_[i]) return;
++        auto picker = nav_.push<FileLoadView>(".TXT");
++        picker->on_changed = [this, i](std::filesystem::path path) {
++            File file;
++            char buf[68];
++            uint8_t key[32];
++            if (file.open(path)) return;
++            auto count = file.read(buf, sizeof(buf));
++            if (!count || *count == sizeof(buf)) return;
++            size_t len = *count;
++            while (len && (buf[len-1] == '\n' || buf[len-1] == '\r')) --len;
++            if (!meshtastic::parse_channel_psk(buf, len, key)) return;
++            keys_[i].assign(buf, len);
++            if (on_change_) on_change_();
++            set_dirty();
++        };
++    };
+     button_rnd_.on_select = [this](Button&) {
+         // The old seed was the seconds hand alone: sixty possible identities, on a
+         // network where two nodes sharing one break each other's routing. Mixed from
+@@ -6344,6 +6384,16 @@ void MeshtasticView::on_timer() {
+         }
+     }
+ 
++    {
++        const uint32_t n = router_.counters().rx_bad;
++        if (n != bad_decode_seen_) {
++            const bool report = bad_decode_seen_ == 0 || n / 8 != bad_decode_seen_ / 8;
++            bad_decode_seen_ = n;
++            if (report)
++                chat_view_.write_console("* RX decode failed n" + to_string_dec_uint(n) + "\n");
++        }
++    }
++
+     if (trace_dest_ && !tx_pending_) {
+         const uint32_t asker = trace_dest_;
+         const uint32_t req_id = trace_req_id_;
+@@ -6872,22 +6922,10 @@ void MeshtasticView::broadcast_telemetry() {
+     }
+ }
+ 
+-void MeshtasticView::derive_channel_key(const std::string& text, uint8_t out[16]) {
+-    bool all_hex = (text.size() == 32);
+-    for (size_t i = 0; all_hex && i < 32; i++)
+-        if (hex_digit(text[i]) < 0) all_hex = false;
+-    if (all_hex) {  // exact 32 hex -> raw AES-128 key
+-        for (int i = 0; i < 16; i++)
+-            out[i] = static_cast<uint8_t>((hex_digit(text[2 * i]) << 4) | hex_digit(text[2 * i + 1]));
+-        return;
+-    }
+-    for (int i = 0; i < 16; i++) out[i] = 0;  // else derive from passphrase
+-    if (text.empty()) {
+-        out[0] = 1;
+-        return;
+-    }
+-    for (size_t i = 0; i < 16; i++)
+-        out[i] = static_cast<uint8_t>(text[i % text.size()] ^ (0x9E * (i + 1)));
++size_t MeshtasticView::derive_channel_key(const std::string& text, uint8_t out[32]) {
++    const size_t parsed = meshtastic::parse_channel_psk(text.data(), text.size(), out);
++    if (parsed) return parsed;
++    return meshtastic::derive_custom_channel_key(text.data(), text.size(), out);
+ }
+ 
+ void MeshtasticView::apply_channels() {
+@@ -6908,11 +6946,11 @@ void MeshtasticView::apply_channels() {
+     for (int i = 0; i < MeshSettings::NUM_CUSTOM; i++) {
+         const bool on = cfg_.ch_enabled[i] && !cfg_.ch_name[i].empty();
+         if (on) {
+-            uint8_t key[16];
+-            derive_channel_key(cfg_.ch_key[i], key);
++            uint8_t key[32];
++            const size_t key_len = derive_channel_key(cfg_.ch_key[i], key);
+             router_.set_channel(i + 1,
+-                                meshtastic::channel_hash(cfg_.ch_name[i].c_str(), key, 16),
+-                                key, 16, true);
++                                meshtastic::channel_hash(cfg_.ch_name[i].c_str(), key, key_len),
++                                key, key_len, true);
+         } else {
+             router_.set_channel(i + 1, 0, nullptr, 0, false);
+         }
+diff --git a/firmware/application/apps/ui_meshtastic.hpp b/firmware/application/apps/ui_meshtastic.hpp
+index 6d051202..ade345e8 100644
+--- a/firmware/application/apps/ui_meshtastic.hpp
++++ b/firmware/application/apps/ui_meshtastic.hpp
+@@ -2032,6 +2032,7 @@ class MeshtasticChannelsView : public View {
+ 
+     // Actions on the highlighted row. Buttons rather than list rows: pick the channel
+     // with the D-pad, then tap the action - no walking back through the list.
++    Button button_import_{{152, BTN_Y - 26, 88, 24}, "Import key"};
+     Button button_del_{{0, BTN_Y, 58, 26}, "Delete"};
+     Button button_rnd_{{61, BTN_Y, 58, 26}, "Rnd key"};
+     Button button_qr_{{122, BTN_Y, 58, 26}, "QR"};
+@@ -2047,7 +2048,7 @@ class MeshtasticView : public View {
+     explicit MeshtasticView(NavigationView& nav);
+     // Passphrase (or 32 hex characters, taken as a raw AES-128 key) -> channel key.
+     // Public because the conversations view builds a channel QR code from it.
+-    static void derive_channel_key(const std::string& text, uint8_t out[16]);
++    static size_t derive_channel_key(const std::string& text, uint8_t out[32]);
+     ~MeshtasticView();
+ 
+     void focus() override;
+@@ -2234,6 +2235,7 @@ class MeshtasticView : public View {
+     // metrics one below: assembling and encrypting a packet inside the RX callback is
+     // far more stack than that callback has.
+     uint32_t bad_hash_seen_{0};  // last reported channel-filter rejection count
++    uint32_t bad_decode_seen_{0};  // rate-limited receive/decryption failures
+     uint32_t trace_dest_{0};
+     uint32_t trace_req_id_{0};
+     float trace_snr_{0.0f};
+diff --git a/tools/lora_bench/Makefile b/tools/lora_bench/Makefile
+index 6dc57266..37fbe1cc 100644
+--- a/tools/lora_bench/Makefile
++++ b/tools/lora_bench/Makefile
+@@ -28,7 +28,7 @@ ROUTER_SRC  = $(APP)/mesh_router.cpp $(APP)/mesh_protocol.cpp \
+ 
+ TESTS = test_lora_framing test_lora_ref test_lora_rssi \
+         test_mesh_regions test_mesh_crypto test_mesh_router \
+-        test_mesh_telemetry test_mesh_partial
++        test_mesh_telemetry test_mesh_partial test_mesh_channel_key
+ 
+ all: run
+ 
+@@ -55,6 +55,9 @@ test_mesh_router: test_mesh_router.cpp $(ROUTER_SRC)
+ test_mesh_telemetry: test_mesh_telemetry.cpp $(ROUTER_SRC)
+ 	$(CXX) $(CXXFLAGS) $(INC) -o $@ $^
+ 
++test_mesh_channel_key: test_mesh_channel_key.cpp $(ROUTER_SRC)
++	$(CXX) $(CXXFLAGS) $(INC) -o $@ $^
++
+ test_mesh_partial: test_mesh_partial.cpp $(ROUTER_SRC)
+ 	$(CXX) $(CXXFLAGS) $(INC) -o $@ $^
+ 
+diff --git a/tools/lora_bench/test_mesh_channel_key.cpp b/tools/lora_bench/test_mesh_channel_key.cpp
+new file mode 100644
+index 00000000..fca5d67e
+--- /dev/null
++++ b/tools/lora_bench/test_mesh_channel_key.cpp
+@@ -0,0 +1,65 @@
++// Exercise channel setup against real router/crypto code and a plaintext wire fixture.
++#include <cassert>
++#include <cstdio>
++#include <cstring>
++#include <string>
++#include "../../firmware/application/apps/mesh/mesh_channel_key.hpp"
++#include "../../firmware/application/apps/mesh/mesh_regions.hpp"
++#include "../../firmware/application/apps/mesh/mesh_router.hpp"
++
++using namespace meshtastic;
++
++int main() {
++    uint8_t key[16];
++    const size_t key_len = derive_custom_channel_key("", 0, key);
++    assert(key_len == 0);
++    const uint8_t hash = channel_hash("test", key, key_len);
++    assert(hash == static_cast<uint8_t>('t' ^ 'e' ^ 's' ^ 't'));
++    NodeDB tx_db{}, rx_db{};
++    MeshRouter tx{tx_db}, rx{rx_db};
++    tx.set_local_node(0x12345678, DEFAULT_PSK, sizeof(DEFAULT_PSK));
++    rx.set_local_node(0x87654321, DEFAULT_PSK, sizeof(DEFAULT_PSK));
++    tx.set_channel(1, hash, key, key_len, true);
++    rx.set_channel(1, hash, key, key_len, true);
++    tx.set_active_channel(1);
++    uint8_t frame[PKT_MAX_SIZE];
++    const size_t len = tx.build_text_tx(frame, sizeof(frame), "OPEN", 4);
++    assert(len > PKT_HEADER_SIZE);
++    assert(PacketHeader::from_bytes(frame).channel_hash == hash);
++    DecodedData data;
++    assert(DecodedData::decode(frame + PKT_HEADER_SIZE, len - PKT_HEADER_SIZE, data));
++    assert(data.portnum == PortNum::TEXT_MESSAGE);
++    assert(data.payload_len == 4 && std::memcmp(data.payload, "OPEN", 4) == 0);
++    // Standard Data protobuf: portnum=1, payload="OPEN", with no ciphertext.
++    const uint8_t plaintext[] = {0x08, 0x01, 0x12, 0x04, 'O', 'P', 'E', 'N'};
++    std::memcpy(frame + PKT_HEADER_SIZE, plaintext, sizeof(plaintext));
++    std::string received;
++    rx.set_on_packet([&](const MeshPacket& p) { received = p.text_payload(); });
++    rx.on_raw_rx(frame, PKT_HEADER_SIZE + sizeof(plaintext), -50, 8.0f, 100);
++    assert(received == "OPEN");
++    assert(rx.counters().rx_bad == 0);
++
++    // Reproduce the old "open" setup: its synthetic AES key changes the hash
++    // and rejects a stock node's actual unencrypted frame before decryption.
++    NodeDB old_db{};
++    MeshRouter old_rx{old_db};
++    const uint8_t old_key[16] = {1};
++    old_rx.set_local_node(0x87654321, DEFAULT_PSK, sizeof(DEFAULT_PSK));
++    old_rx.set_channel(1, channel_hash("test", old_key, sizeof(old_key)),
++                       old_key, sizeof(old_key), true);
++    old_rx.on_raw_rx(frame, PKT_HEADER_SIZE + sizeof(plaintext), -50, 8.0f, 100);
++    assert(old_rx.bad_hash_count() == 1);
++
++    // Existing raw keys, including mixed-case hexadecimal, retain all 128 bits.
++    const char* raw = "00112233445566778899aAbBcCdDeEfF";
++    assert(derive_custom_channel_key(raw, 32, key) == 16);
++    for (size_t i = 0; i < 16; ++i) assert(key[i] == i * 0x11);
++    const char* pass = "test";
++    assert(derive_custom_channel_key(pass, 4, key) == 16);
++    const uint8_t legacy[] = {0xea, 0x59, 0xa9, 0x0c, 0x62, 0xd1, 0x21, 0x84,
++                              0xfa, 0x49, 0xb9, 0x1c, 0x72, 0xc1, 0x31, 0x94};
++    assert(std::memcmp(key, legacy, sizeof(key)) == 0);
++    assert(derive_custom_channel_key("", 0, key) == 0);  // removing a key reopens it
++    for (uint8_t byte : key) assert(byte == 0);
++    std::puts("PASS: plaintext channel RX/TX, raw keys, legacy passphrases, key removal");
++}
