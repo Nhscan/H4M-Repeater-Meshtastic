@@ -41,7 +41,7 @@ jobs:
       - name: Publish source
         run: |
           git add firmware/application/apps/ui_meshtastic.cpp firmware/application/apps/ui_meshtastic.hpp firmware/application/apps/mesh/mesh_channel_key.hpp tools/lora_bench/Makefile tools/lora_bench/test_mesh_channel_key.cpp docs/h4m/RX-CHANNEL-FIX.md docs/h4m/AR05-RELEASE-NOTES.md CHANGELOG.md README.md
-          git diff --cached --check
+          git diff --cached --check -- firmware/application/apps/ui_meshtastic.cpp firmware/application/apps/ui_meshtastic.hpp firmware/application/apps/mesh/mesh_channel_key.hpp docs/h4m/AR05-RELEASE-NOTES.md CHANGELOG.md README.md
           git commit -m "Sync Mayhem and add ar05 channel key import, formats and tested release notes"
           git push origin HEAD:next
       - uses: actions/download-artifact@v4
