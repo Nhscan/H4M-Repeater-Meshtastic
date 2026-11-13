@@ -34,20 +34,42 @@ jobs:
           assert image.stat().st_size == 1048576
           assert len(list((sd/"APPS").glob("*.ppma"))) == 104
           assert len(list((sd/"APPS").glob("*.ppmp"))) == 2
-          update = sd / "FIRMWARE/H4M_AR05.ppfw.tar"
+          update = sd / "FIRMWARE/H4M_AR05_FIX.ppfw.tar"
           # Put all support files before the actual firmware image.
-          with tarfile.open(update, "w") as tar:
+          with tarfile.open(update, "w", format=tarfile.USTAR_FORMAT) as tar:
               for folder in ("APPS", "BASEBAND"):
+                  tar.add(sd/folder, arcname=folder, recursive=False)
                   for file in sorted((sd/folder).iterdir()):
                       tar.add(file, arcname=file.relative_to(sd).as_posix())
+              tar.add(sd/"FIRMWARE", arcname="FIRMWARE", recursive=False)
               tar.add(image, arcname=image.relative_to(sd).as_posix())
+          # Emulate the embedded extractor: only regular files and directories.
+          raw = update.read_bytes()
+          offset = 0
+          dirs = set()
+          last_bin = None
+          while any(raw[offset:offset+512]):
+              header = raw[offset:offset+512]
+              assert len(header) == 512
+              name = header[:100].split(b"\\0")[0].decode()
+              kind = header[156:157]
+              size = int(header[124:136].strip(b"\\0 "), 8)
+              assert kind in (b"0", b"\\0", b"5"), (name, kind)
+              if kind == b"5":
+                  dirs.add(name.rstrip("/"))
+              else:
+                  assert str(Path(name).parent) in dirs, name
+                  if name.endswith(".bin"): last_bin = name
+              offset += 512 + ((size+511)//512)*512
+          assert last_bin == "FIRMWARE/"+image.name
+          print("PASS embedded TAR header types, parent directories and last firmware image")
           subprocess.run(["python3", "tests/auto_repeater/check_update_archive.py", str(update), "n_261109_ar05"], check=True)
           (root/"START-HERE.txt").write_text(
               "H4M Meshtastic ar05 - HackRF One + PortaPack H4M\n\n"
               "1. Extract this ZIP. Copy everything INSIDE SD_CARD to the SD card root.\n"
               "   Merge folders and replace matching files. Keep your other SD card data.\n"
               "2. Insert the SD card and open Utilities > Flash Utility on the PortaPack.\n"
-              "3. Choose H4M_AR05.ppfw.tar from FIRMWARE. Wait for completion and reboot.\n"
+              "3. Choose H4M_AR05_FIX.ppfw.tar from FIRMWARE. Wait for completion and reboot.\n"
               "4. Check About shows n_261109_ar05.\n\n"
               "FIRMWARE also contains the matching 1 MiB .bin for compatible BIN flashing.\n"
               "APPS and BASEBAND must be copied from this same build.\n"
