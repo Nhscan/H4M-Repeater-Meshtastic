@@ -1,0 +1,69 @@
+name: Package H4M ar05 for SD flashing
+on:
+  push:
+    branches: [build/meshtastic-key-import-ar05]
+    paths: [.github/workflows/package-ar05.yml]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: h4m-ar05
+          run-id: 43456182814
+          github-token: ${{ github.token }}
+          path: incoming
+      - name: Assemble matching SD card and Flash Utility package
+        shell: python
+        run: |
+          import hashlib, shutil, subprocess, tarfile, zipfile
+          from pathlib import Path
+          root = Path("delivery/H4M-Meshtastic-ar05")
+          sd = root / "SD_CARD"
+          sd.mkdir(parents=True)
+          with tarfile.open("incoming/portapack-mayhem_OCI.ppfw.tar") as tar:
+              for m in tar.getmembers():
+                  assert not m.name.startswith("/") and ".." not in Path(m.name).parts
+                  assert Path(m.name).parts[0] in ("APPS", "BASEBAND", "FIRMWARE")
+              tar.extractall(sd, filter="data")
+          image = sd / "FIRMWARE/portapack-mayhem_n_261109_ar05.bin"
+          assert image.stat().st_size == 1048576
+          assert len(list((sd/"APPS").glob("*.ppma"))) == 104
+          assert len(list((sd/"APPS").glob("*.ppmp"))) == 2
+          update = sd / "FIRMWARE/H4M_AR05.ppfw.tar"
+          # Put all support files before the actual firmware image.
+          with tarfile.open(update, "w") as tar:
+              for folder in ("APPS", "BASEBAND"):
+                  for file in sorted((sd/folder).iterdir()):
+                      tar.add(file, arcname=file.relative_to(sd).as_posix())
+              tar.add(image, arcname=image.relative_to(sd).as_posix())
+          subprocess.run(["python3", "tests/auto_repeater/check_update_archive.py", str(update), "n_261109_ar05"], check=True)
+          (root/"START-HERE.txt").write_text(
+              "H4M Meshtastic ar05 - HackRF One + PortaPack H4M\n\n"
+              "1. Extract this ZIP. Copy everything INSIDE SD_CARD to the SD card root.\n"
+              "   Merge folders and replace matching files. Keep your other SD card data.\n"
+              "2. Insert the SD card and open Utilities > Flash Utility on the PortaPack.\n"
+              "3. Choose H4M_AR05.ppfw.tar from FIRMWARE. Wait for completion and reboot.\n"
+              "4. Check About shows n_261109_ar05.\n\n"
+              "FIRMWARE also contains the matching 1 MiB .bin for compatible BIN flashing.\n"
+              "APPS and BASEBAND must be copied from this same build.\n"
+              "This package updates firmware/support files and retains existing SD resources.\n\n"
+              "Custom channels accept blank (open), 32/64 hex digits, or padded Base64 keys.\n"
+              "Select a custom channel and use Import key for an SD .TXT containing only the key.\n"
+              "Hardware interoperability testing is pending.\n")
+          (root/"SHA256SUMS.txt").write_text("".join(
+              hashlib.sha256(p.read_bytes()).hexdigest()+"  "+p.relative_to(root).as_posix()+"\n"
+              for p in sorted(root.rglob("*")) if p.is_file()))
+          with zipfile.ZipFile("delivery/H4M-Meshtastic-ar05-SD-and-Flash.zip", "w", zipfile.ZIP_DEFLATED) as z:
+              for p in sorted(root.rglob("*")):
+                  if p.is_file(): z.write(p, p.relative_to(root.parent))
+          print("PASS: SD_CARD/APPS, BASEBAND, FIRMWARE, update archive, raw image and checksums")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: H4M-Meshtastic-ar05-SD-and-Flash
+          path: delivery/H4M-Meshtastic-ar05-SD-and-Flash.zip
+          if-no-files-found: error
