@@ -104,7 +104,7 @@ index 00000000..76f60175
 +}  // namespace meshtastic
 +#endif
 diff --git a/firmware/application/apps/ui_meshtastic.cpp b/firmware/application/apps/ui_meshtastic.cpp
-index 653fd42e..c14b54ce 100644
+index 653fd42e..1e0a1258 100644
 --- a/firmware/application/apps/ui_meshtastic.cpp
 +++ b/firmware/application/apps/ui_meshtastic.cpp
 @@ -6,6 +6,8 @@
@@ -186,33 +186,7 @@ index 653fd42e..c14b54ce 100644
          qr_url_ = meshtastic::channel_share_url(sh);
          l1 = "Channel " + names_[i];
          l2 = std::string(meshtastic::PRESET_CHANNEL_NAMES[preset_idx_]) +
-@@ -4520,6 +4541,25 @@ MeshProfilePageView::MeshProfilePageView(NavigationView& nav, MeshSettings& cfg,
-             changed(); }, false);
-     };
- 
-+    button_import_.on_select = [this](Button&) {
-+        const int i = target_slot();
-+        if (i < 0 || !enabled_[i]) return;
-+        auto picker = nav_.push<FileLoadView>(".TXT");
-+        picker->on_changed = [this, i](std::filesystem::path path) {
-+            File file;
-+            char buf[68];
-+            uint8_t key[32];
-+            if (file.open(path)) return;
-+            auto count = file.read(buf, sizeof(buf));
-+            if (!count || *count == sizeof(buf)) return;
-+            size_t len = *count;
-+            while (len && (buf[len-1] == '\n' || buf[len-1] == '\r')) --len;
-+            if (!meshtastic::parse_channel_psk(buf, len, key)) return;
-+            keys_[i].assign(buf, len);
-+            if (on_change_) on_change_();
-+            set_dirty();
-+        };
-+    };
-     button_rnd_.on_select = [this](Button&) {
-         // The old seed was the seconds hand alone: sixty possible identities, on a
-         // network where two nodes sharing one break each other's routing. Mixed from
-@@ -6344,6 +6384,16 @@ void MeshtasticView::on_timer() {
+@@ -6344,6 +6365,16 @@ void MeshtasticView::on_timer() {
          }
      }
  
@@ -229,7 +203,7 @@ index 653fd42e..c14b54ce 100644
      if (trace_dest_ && !tx_pending_) {
          const uint32_t asker = trace_dest_;
          const uint32_t req_id = trace_req_id_;
-@@ -6872,22 +6922,10 @@ void MeshtasticView::broadcast_telemetry() {
+@@ -6872,22 +6903,10 @@ void MeshtasticView::broadcast_telemetry() {
      }
  }
  
@@ -256,7 +230,7 @@ index 653fd42e..c14b54ce 100644
  }
  
  void MeshtasticView::apply_channels() {
-@@ -6908,11 +6946,11 @@ void MeshtasticView::apply_channels() {
+@@ -6908,11 +6927,11 @@ void MeshtasticView::apply_channels() {
      for (int i = 0; i < MeshSettings::NUM_CUSTOM; i++) {
          const bool on = cfg_.ch_enabled[i] && !cfg_.ch_name[i].empty();
          if (on) {
