@@ -1,0 +1,59 @@
+name: Publish ar05 source and complete package
+on:
+  push:
+    branches: [build/meshtastic-key-import-ar05]
+    paths: [.github/workflows/publish-ar05.yml]
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: next
+          fetch-depth: 0
+      - name: Synchronize firmware source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin build/meshtastic-key-import-ar05
+          git show origin/build/meshtastic-key-import-ar05:ci/ar05.patch > /tmp/ar05.patch
+          git fetch https://github.com/portapack-mayhem/mayhem-firmware.git 2b7e3b4023b46d4e2c557ffa205a1e02a8caef12
+          if ! git merge --no-commit FETCH_HEAD; then
+            python3 tools/update_external_tier_ld.py
+            git add firmware/application/external/external_tier*.ld
+            test -z "$(git diff --name-only --diff-filter=U)"
+          fi
+          git apply /tmp/ar05.patch
+      - name: Record changes and hardware test
+        shell: python
+        run: |
+          from pathlib import Path
+          notes = "## ar05 - 2026-11-13\n\nTest firmware `n_261109_ar05` for HackRF One + PortaPack H4M.\n\n- Synced Mayhem upstream through 2b7e3b4023b46d4e2c557ffa205a1e02a8caef12.\n- Fixed custom channels with empty keys using synthetic encryption instead of plaintext.\n- Added custom channel support for raw 128-bit/256-bit hexadecimal keys and padded Base64 PSKs.\n- Added an Import key button for a key-only SD-card .TXT file and expanded typed key entry to 64 characters.\n- Preserved the existing custom passphrase format and primary-channel default key behavior.\n- Added rate-limited receive decode failure diagnostics.\n- Corrected the updater package to USTAR with explicit directories, matching APPS/BASEBAND files, and the firmware image last.\n- Included the matching firmware .bin, Windows USB tools/drivers, backup and read-back verification launcher, instructions and SHA-256 checksums.\n\nValidation: ARM build, layout, runtime memory, installation and update-archive checks passed.\nCraig successfully flashed the corrected archive. In a bench test with LILYGO T3 Meshtastic 2.7.26, the PortaPack imported a 256-bit Base64 key and received the LILYGO test text. The LILYGO received \"256\" from the PortaPack. A subsequent reply was not observed, so repeated-delivery reliability remains under investigation. This test covered the secondary test channel on Short Fast at 433.125 MHz. Other presets, direct-message PKC, arbitrary keys and manual 256-bit typing require further hardware testing.\n\n"
+          p = Path("CHANGELOG.md")
+          p.write_text(p.read_text().replace("# Changelog\n", "# Changelog\n\n"+notes, 1))
+          Path("docs/h4m/AR05-RELEASE-NOTES.md").write_text(notes)
+          p = Path("README.md")
+          text = p.read_text()
+          p.write_text(text.replace("# H4M Auto Repeater + Meshtastic\n", "# H4M Auto Repeater + Meshtastic\n\nLatest test build: [ar05 downloads and changes](https://github.com/Nhscan/H4M-Repeater-Meshtastic/releases/tag/ar05). Includes the complete SD-card and Windows flash package.\n", 1))
+      - name: Publish source
+        run: |
+          git add firmware/application/apps/ui_meshtastic.cpp firmware/application/apps/ui_meshtastic.hpp firmware/application/apps/mesh/mesh_channel_key.hpp tools/lora_bench/Makefile tools/lora_bench/test_mesh_channel_key.cpp docs/h4m/RX-CHANNEL-FIX.md docs/h4m/AR05-RELEASE-NOTES.md CHANGELOG.md README.md
+          git diff --cached --check
+          git commit -m "Sync Mayhem and add ar05 channel key import, formats and tested release notes"
+          git push origin HEAD:next
+      - uses: actions/download-artifact@v4
+        with:
+          name: H4M-Meshtastic-ar05-SD-and-Flash
+          run-id: 43461574461
+          github-token: ${{ github.token }}
+          path: release
+      - name: Publish complete downloadable package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd release
+          sha256sum H4M-Meshtastic-ar05-SD-and-Flash.zip > SHA256SUMS.txt
+          gh release create ar05 H4M-Meshtastic-ar05-SD-and-Flash.zip SHA256SUMS.txt --repo Nhscan/H4M-Repeater-Meshtastic --target next --prerelease --title "H4M Meshtastic ar05 - AES256 key import test build" --notes-file ../docs/h4m/AR05-RELEASE-NOTES.md
